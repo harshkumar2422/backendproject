@@ -90,7 +90,8 @@ exports.viewUser = async (req, res) => {
                 if (!data) {
                         return res.status(400).send({ msg: "not found" });
                 }
-                return res.status(200).send({ msg: "Data found successfully", data: data });
+                let findAddress = await userAddress.findOne({ userId: data._id, type: "Registration" });
+                return res.status(200).send({ msg: "Data found successfully", data: data, address: findAddress });
         } catch (err) {
                 console.log(err.message);
                 return res.status(500).send({ msg: "internal server error", error: err.message, });
@@ -358,9 +359,12 @@ exports.updateSubCategory = async (req, res) => {
                 if (!findSubCategory) {
                         return res.status(404).json({ status: 404, message: "Sub Category Not Found", data: {} });
                 }
-                const findCategory = await Category.findById(req.body.categoryId);
-                if (!findCategory || findCategory.length === 0) {
-                        return res.status(400).send({ status: 404, msg: "Category not found" });
+                let findCategory;
+                if (req.body.categoryId != "null") {
+                        findCategory = await Category.findById({ _id: req.body.categoryId });
+                        if (!findCategory || findCategory.length === 0) {
+                                return res.status(400).send({ status: 404, msg: "Category not found" });
+                        }
                 }
                 req.body.categoryId = findCategory._id || findSubCategory.categoryId;
                 req.body.name = req.body.name || findSubCategory.name;
@@ -1090,15 +1094,30 @@ exports.editProductColorSize = async (req, res) => {
 };
 exports.createBanner = async (req, res) => {
         try {
-                let bannerImage;
+                let bannerImage, data;
                 if (req.file.path) {
                         bannerImage = req.file.path
                 }
-                const data = {
-                        bannerName: req.body.bannerName,
-                        bannerImage: bannerImage,
-                        position: req.body.position
-                };
+                if (req.body.subcategoryId != (null || undefined)) {
+                        const findSubCategory = await subCategory.findById({ _id: req.body.subcategoryId })
+                        if (!findSubCategory || findSubCategory.length === 0) {
+                                return res.status(400).send({ msg: "not found" });
+                        }
+                        data = {
+                                subcategoryId: findSubCategory._id,
+                                bannerName: req.body.bannerName,
+                                bannerImage: bannerImage,
+                                position: req.body.position,
+                                type: "SubCategory"
+                        };
+                } else {
+                        data = {
+                                bannerName: req.body.bannerName,
+                                bannerImage: bannerImage,
+                                position: req.body.position,
+                                type: "Other"
+                        };
+                }
                 const Banner = await banner.create(data);
                 return res.status(200).json({ message: "Banner add successfully.", status: 200, data: Banner });
         } catch (error) {
@@ -1107,7 +1126,7 @@ exports.createBanner = async (req, res) => {
 };
 exports.getBanner = async (req, res) => {
         try {
-                const data = await banner.find({});
+                const data = await banner.find({}).populate('subcategoryId');
                 if (data.length === 0) {
                         return res.status(400).send({ msg: "not found" });
                 }
@@ -1118,7 +1137,7 @@ exports.getBanner = async (req, res) => {
 };
 exports.getTopBanner = async (req, res) => {
         try {
-                const data = await banner.find({ position: "TOP" });
+                const data = await banner.find({ position: "TOP" }).populate('subcategoryId');
                 if (data.length === 0) {
                         return res.status(400).send({ msg: "not found" });
                 }
@@ -1129,7 +1148,7 @@ exports.getTopBanner = async (req, res) => {
 };
 exports.getMidBanner = async (req, res) => {
         try {
-                const data = await banner.find({ position: "MID" });
+                const data = await banner.find({ position: "MID" }).populate('subcategoryId');
                 if (data.length === 0) {
                         return res.status(400).send({ msg: "not found" });
                 }
@@ -1140,7 +1159,7 @@ exports.getMidBanner = async (req, res) => {
 };
 exports.getBottomBanner = async (req, res) => {
         try {
-                const data = await banner.find({ position: "BOTTOM" });
+                const data = await banner.find({ position: "BOTTOM" }).populate('subcategoryId');
                 if (data.length === 0) {
                         return res.status(400).send({ msg: "not found" });
                 }
@@ -1151,7 +1170,7 @@ exports.getBottomBanner = async (req, res) => {
 };
 exports.getIdBanner = async (req, res) => {
         try {
-                const data = await banner.findById(req.params.id);
+                const data = await banner.findById(req.params.id).populate('subcategoryId');
                 if (!data) {
                         return res.status(400).send({ msg: "not found" });
                 }
@@ -1178,11 +1197,36 @@ exports.updateBanner = async (req, res) => {
                 if (!findData) {
                         return res.status(400).send({ msg: "not found" });
                 }
-                let bannerImage;
-                if (req.file.path) {
-                        bannerImage = req.file.path
+                let data;
+                if (req.body.subcategoryId != (null || undefined)) {
+                        const findSubCategory = await subCategory.findById({ _id: req.body.subcategoryId })
+                        if (!findSubCategory || findSubCategory.length === 0) {
+                                return res.status(400).send({ msg: "not found" });
+                        }
+                        let bannerImage;
+                        if (req.file.path) {
+                                bannerImage = req.file.path
+                        }
+                        data = {
+                                bannerName: req.body.bannerName || findData.bannerName,
+                                bannerImage: bannerImage || findData.bannerImage,
+                                position: req.body.position || findData.position,
+                                type: "SubCategory" || findData.type,
+                                subcategoryId: findSubCategory._id || findData.subcategoryId,
+                        };
+                } else {
+                        let bannerImage;
+                        if (req.file.path) {
+                                bannerImage = req.file.path
+                        }
+                        data = {
+                                bannerName: req.body.bannerName || findData.bannerName,
+                                bannerImage: bannerImage || findData.bannerImage,
+                                position: req.body.position || findData.position,
+                                type: "Other" || findData.type,
+                                subcategoryId: findData.subcategoryId,
+                        };
                 }
-                const data = { bannerName: req.body.bannerName || findData.bannerName, bannerImage: bannerImage || findData.bannerImage, position: req.body.position || findData.position, };
                 const Banner = await banner.findByIdAndUpdate({ _id: findData._id }, { $set: data }, { new: true })
                 return res.status(200).json({ message: "Banner update successfully.", status: 200, data: Banner });
         } catch (error) {
@@ -1599,18 +1643,18 @@ exports.paginateAllOrdersSearch = async (req, res) => {
                 console.log("------------------------");
                 const { search, fromDate, toDate, page, limit } = req.query;
                 let query = { orderStatus: "confirmed" };
-                if (search) {
+                if (search != 'null') {
                         query.$or = [
                                 { "orderId": { $regex: req.query.search, $options: "i" }, },
                         ]
                 }
-                if (fromDate && !toDate) {
+                if ((fromDate != 'null') && (toDate == 'null')) {
                         query.createdAt = { $gte: fromDate };
                 }
-                if (!fromDate && toDate) {
+                if ((fromDate == 'null') && (toDate != 'null')) {
                         query.createdAt = { $lte: toDate };
                 }
-                if (fromDate && toDate) {
+                if ((fromDate != 'null') && (toDate != 'null')) {
                         query.$and = [
                                 { createdAt: { $gte: fromDate } },
                                 { createdAt: { $lte: toDate } },
@@ -1648,7 +1692,6 @@ exports.getOrderbyId = async (req, res, next) => {
                 res.status(501).send({ status: 501, message: "server error.", data: {}, });
         }
 };
-
 exports.createBanner1 = async (req, res) => {
         try {
                 if (req.file.path) {

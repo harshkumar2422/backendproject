@@ -6,11 +6,20 @@ const DocumentSchema = schema({
                 enum: ["TOP", "MID", "BOTTOM"],
                 default: "TOP"
         },
+        subcategoryId: {
+                type: schema.Types.ObjectId,
+                ref: "subcategory"
+        },
         bannerName: {
                 type: String
         },
         bannerImage: {
                 type: String
+        },
+        type: {
+                type: String,
+                enum: ["SubCategory", "Other"],
+                default: "Other"
         },
 }, { timestamps: true })
 module.exports = mongoose.model("banner", DocumentSchema);
